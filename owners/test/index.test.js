@@ -15,7 +15,6 @@
  */
 
 const fs = require('fs');
-const nock = require('nock');
 const owners = require('..');
 const path = require('path');
 const sinon = require('sinon');

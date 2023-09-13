@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-const nock = require('nock');
 const sinon = require('sinon');
-const {Octokit} = require('@octokit/rest');
 
 const {CheckRun, CheckRunState} = require('../../src/ownership/owners_check');
 const {GitHub, PullRequest, Review, Team} = require('../../src/api/github');
@@ -113,25 +111,19 @@ describe('team', () => {
 
 describe('GitHub API', () => {
   const sandbox = sinon.createSandbox();
-  let githubClient;
+  let mockGithubClient;
   let github;
-
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
 
   beforeEach(() => {
     sandbox.stub(console);
     sandbox.stub(CheckRun.prototype, 'helpText').value('HELP TEXT');
 
-    githubClient = new Octokit({
-      auth: '_TOKEN_',
-    });
-    github = new GitHub(githubClient, 'test_owner', 'test_repo', console);
+    mockGithubClient = {
+      checks: {
+        update: jest.fn(),
+      },
+    };
+    github = new GitHub(mockGithubClient, 'test_owner', 'test_repo', console);
   });
 
   afterEach(() => {
@@ -145,11 +137,11 @@ describe('GitHub API', () => {
         repo: () => {
           return {repo: 'test_repo', owner: 'test_owner'};
         },
-        octokit: githubClient,
+        octokit: mockGithubClient,
         log: logStub,
       });
 
-      expect(github.client).toBe(githubClient);
+      expect(github.client).toBe(mockGithubClient);
       expect(github.owner).toEqual('test_owner');
       expect(github.repository).toEqual('test_repo');
       expect(github.logger).toBe(logStub);
@@ -685,28 +677,28 @@ describe('GitHub API', () => {
 
   describe('updateCheckRun', () => {
     it('updates a check-run by ID', async () => {
-      expect.assertions(1);
-      nock('https://api.github.com')
-        .patch('/repos/test_owner/test_repo/check-runs/1337', body => {
-          expect(body).toMatchObject({
-            name: 'ampproject/owners-check',
-            status: 'completed',
-            conclusion: 'neutral',
-            output: {
-              title: 'Test summary',
-              summary: 'Test summary',
-              text: 'Test text\n\nHELP TEXT',
-            },
-          });
-          return true;
-        })
-        .reply(200);
+      mockGithubClient.checks.update.mockResolvedValue({});
       const checkRun = new CheckRun(
         CheckRunState.NEUTRAL,
         'Test summary',
         'Test text'
       );
       await github.updateCheckRun(1337, checkRun);
+
+      expect(mockGithubClient.checks.update).toHaveBeenCalledWith({
+        'check_run_id': 1337,
+        'completed_at': expect.any(Date),
+        owner: 'test_owner',
+        repo: 'test_repo',
+        name: 'ampproject/owners-check',
+        status: 'completed',
+        conclusion: 'neutral',
+        output: {
+          title: 'Test summary',
+          summary: 'Test summary',
+          text: 'Test text\n\nHELP TEXT',
+        },
+      });
     });
   });
 });
