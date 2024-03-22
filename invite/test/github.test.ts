@@ -14,54 +14,47 @@
  * limitations under the License.
  */
 
-import type {Octokit} from '@octokit/rest';
+import {DeepMockProxy, mockDeep} from 'jest-mock-extended';
+import {ProbotOctokit} from 'probot';
 
 import {GitHub} from '../src/github';
 import {getOctokitResponse} from './fixtures';
 
 describe('GitHub interface', () => {
-  let mockGithubClient: jest.MockedObjectDeep<Octokit>;
+  let mockGithubClient: DeepMockProxy<ProbotOctokit>;
   let github: GitHub;
 
   beforeEach(() => {
-    mockGithubClient = {
-      issues: {
-        addAssignees: jest.fn(),
-        createComment: jest.fn(),
-      },
-      orgs: {
-        getMembershipForUser: jest.fn(),
-        setMembershipForUser: jest.fn(),
-      },
-      teams: {
-        getMembershipForUserInOrg: jest.fn(),
-      },
-    } as unknown as jest.MockedObjectDeep<Octokit>;
+    mockGithubClient = mockDeep<ProbotOctokit>();
     github = new GitHub(mockGithubClient, 'test_org');
   });
 
   describe('inviteUser', () => {
     it('returns false when the user is already a member', async () => {
-      mockGithubClient.orgs.setMembershipForUser.mockResolvedValue(
+      mockGithubClient.rest.orgs.setMembershipForUser.mockResolvedValue(
         getOctokitResponse('add_member.exists')
       );
 
       await expect(github.inviteUser('someone')).resolves.toBe(false);
 
-      expect(mockGithubClient.orgs.setMembershipForUser).toHaveBeenCalledWith({
+      expect(
+        mockGithubClient.rest.orgs.setMembershipForUser
+      ).toHaveBeenCalledWith({
         org: 'test_org',
         username: 'someone',
       });
     });
 
     it('returns true when the user is invited', async () => {
-      mockGithubClient.orgs.setMembershipForUser.mockResolvedValue(
+      mockGithubClient.rest.orgs.setMembershipForUser.mockResolvedValue(
         getOctokitResponse('add_member.invited')
       );
 
       await expect(github.inviteUser('someone')).resolves.toBe(true);
 
-      expect(mockGithubClient.orgs.setMembershipForUser).toHaveBeenCalledWith({
+      expect(
+        mockGithubClient.rest.orgs.setMembershipForUser
+      ).toHaveBeenCalledWith({
         org: 'test_org',
         username: 'someone',
       });
@@ -72,7 +65,7 @@ describe('GitHub interface', () => {
     it('POSTs comment to /repos/:owner/:repo/issues/:issue_number/comments', async () => {
       await github.addComment('test_repo', 1337, 'Test comment');
 
-      expect(mockGithubClient.issues.createComment).toHaveBeenCalledWith({
+      expect(mockGithubClient.rest.issues.createComment).toHaveBeenCalledWith({
         owner: 'test_org',
         repo: 'test_repo',
         'issue_number': 1337,
@@ -85,7 +78,7 @@ describe('GitHub interface', () => {
     it('POSTs assignee to /repos/:owner/:repo/issues/:issue_number/assignees', async () => {
       await github.assignIssue('test_repo', 1337, 'someone');
 
-      expect(mockGithubClient.issues.addAssignees).toHaveBeenCalledWith({
+      expect(mockGithubClient.rest.issues.addAssignees).toHaveBeenCalledWith({
         owner: 'test_org',
         repo: 'test_repo',
         'issue_number': 1337,
@@ -96,7 +89,7 @@ describe('GitHub interface', () => {
 
   describe('userIsTeamMember', () => {
     it('returns true for "active" membership state', async () => {
-      mockGithubClient.teams.getMembershipForUserInOrg.mockResolvedValue(
+      mockGithubClient.rest.teams.getMembershipForUserInOrg.mockResolvedValue(
         getOctokitResponse('team_membership.active')
       );
 
@@ -105,7 +98,7 @@ describe('GitHub interface', () => {
       ).resolves.toBe(true);
 
       expect(
-        mockGithubClient.teams.getMembershipForUserInOrg
+        mockGithubClient.rest.teams.getMembershipForUserInOrg
       ).toHaveBeenCalledWith({
         org: 'test_org',
         'team_slug': 'test-team',
@@ -114,7 +107,7 @@ describe('GitHub interface', () => {
     });
 
     it('returns false for "pending" membership state', async () => {
-      mockGithubClient.teams.getMembershipForUserInOrg.mockResolvedValue(
+      mockGithubClient.rest.teams.getMembershipForUserInOrg.mockResolvedValue(
         getOctokitResponse('team_membership.pending')
       );
 
@@ -123,7 +116,7 @@ describe('GitHub interface', () => {
       ).resolves.toBe(false);
 
       expect(
-        mockGithubClient.teams.getMembershipForUserInOrg
+        mockGithubClient.rest.teams.getMembershipForUserInOrg
       ).toHaveBeenCalledWith({
         org: 'test_org',
         'team_slug': 'test-team',
@@ -132,7 +125,7 @@ describe('GitHub interface', () => {
     });
 
     it('returns false for 404: Not Found', async () => {
-      mockGithubClient.teams.getMembershipForUserInOrg.mockResolvedValue(
+      mockGithubClient.rest.teams.getMembershipForUserInOrg.mockResolvedValue(
         getOctokitResponse('team_membership.not_found', 404)
       );
 
@@ -141,7 +134,7 @@ describe('GitHub interface', () => {
       ).resolves.toBe(false);
 
       expect(
-        mockGithubClient.teams.getMembershipForUserInOrg
+        mockGithubClient.rest.teams.getMembershipForUserInOrg
       ).toHaveBeenCalledWith({
         org: 'test_org',
         'team_slug': 'test-team',

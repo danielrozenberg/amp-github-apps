@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-import {Octokit} from '@octokit/rest';
+import {pino} from 'pino';
 
 import {GitHub} from './github';
 import {InvitationRecord, InviteAction} from './invitation_record';
-import {Invite, InviteActionType, Logger} from 'invite-bot';
-import {dbConnect} from './db';
+
+import type {Invite, InviteActionType} from 'invite-bot';
+import type {Knex} from 'knex';
+import type {Logger, ProbotOctokit} from 'probot';
 
 const INVITE_MACROS: Record<string, InviteActionType> = {
   invite: InviteAction.INVITE,
@@ -51,6 +53,7 @@ export class InviteBot {
   readonly helpUserTag: string;
   readonly github: GitHub;
   readonly record: InvitationRecord;
+  readonly logger: Logger;
 
   /**
    * Constructor.
@@ -63,18 +66,20 @@ export class InviteBot {
    * comment will say "ask someone for help". Example: 'ampproject/wg-infra'
    */
   constructor(
-    client: Octokit,
-    private org: string,
-    private allowTeamSlug: string,
-    helpUsernameToTag: string | null = null,
-    private logger: Logger = console
+    db: Knex,
+    client: ProbotOctokit,
+    private readonly org: string,
+    private readonly allowTeamSlug: string,
+    helpUsernameToTag?: string,
+    logger?: Logger
   ) {
-    this.github = new GitHub(client, org, logger);
-    this.record = new InvitationRecord(dbConnect(), logger);
-    this.helpUserTag =
-      helpUsernameToTag === null
-        ? 'someone in your organization'
-        : `@${helpUsernameToTag}`;
+    this.logger = logger ?? pino();
+
+    this.github = new GitHub(client, org, this.logger);
+    this.record = new InvitationRecord(db, this.logger);
+    this.helpUserTag = helpUsernameToTag
+      ? `@${helpUsernameToTag}`
+      : 'someone in your organization';
 
     this.logger.info(`InviteBot initialized for ${this.org}`);
   }

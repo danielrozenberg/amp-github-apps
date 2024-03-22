@@ -14,18 +14,22 @@
  * limitations under the License.
  */
 
-import {Octokit} from '@octokit/rest';
+import {pino} from 'pino';
 
-import {Logger} from 'invite-bot';
+import type {Logger, ProbotOctokit} from 'probot';
 
 /** Interface for working with the GitHub API. */
 export class GitHub {
+  readonly logger: Logger;
+
   /** Constructor. */
   constructor(
-    private client: Octokit,
-    private org: string,
-    private logger: Logger = console
-  ) {}
+    private readonly client: ProbotOctokit,
+    private readonly org: string,
+    logger?: Logger
+  ) {
+    this.logger = logger ?? pino();
+  }
 
   /**
    * Attempts to invite a user to the organization. Returns true if an invite
@@ -33,7 +37,7 @@ export class GitHub {
    */
   async inviteUser(username: string): Promise<boolean> {
     this.logger.info(`inviteUser: Sending an invite to @${username}`);
-    const response = await this.client.orgs.setMembershipForUser({
+    const response = await this.client.rest.orgs.setMembershipForUser({
       org: this.org,
       username,
     });
@@ -48,7 +52,7 @@ export class GitHub {
     comment: string
   ): Promise<void> {
     this.logger.info(`addComment: Commenting on ${repo}#${issue_number}`);
-    await this.client.issues.createComment({
+    await this.client.rest.issues.createComment({
       owner: this.org,
       repo,
       issue_number,
@@ -65,7 +69,7 @@ export class GitHub {
     this.logger.info(
       `assignIssue: Assigning @${assignee} to ${repo}#${issue_number}`
     );
-    await this.client.issues.addAssignees({
+    await this.client.rest.issues.addAssignees({
       owner: this.org,
       repo,
       issue_number,
@@ -83,7 +87,7 @@ export class GitHub {
     // only need the status code to make a determination, so the `catch` handler
     // just forwards along the response.
     const [org, teamName] = teamSlug.split('/');
-    const response = await this.client.teams
+    const response = await this.client.rest.teams
       .getMembershipForUserInOrg({
         org,
         team_slug: teamName,

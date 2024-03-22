@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 The AMP HTML Authors. All Rights Reserved.
+ * Copyright 2024 The AMP HTML Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import knex from 'knex';
 
-global.console.log = jest.fn();
-global.console.info = jest.fn();
-global.console.debug = jest.fn();
-// Allow the environment to override if desired.
-process.env.LOG_LEVEL ??= 'warn';
+export function inMemoryDbConnect() {
+  return knex({
+    client: 'sqlite3',
+    connection: ':memory:',
+    useNullAsDefault: true,
+  });
+}

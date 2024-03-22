@@ -14,19 +14,14 @@
  * limitations under the License.
  */
 
-import knex from 'knex';
-
-import {Database} from '../src/db';
-import {InvitationRecord, InviteAction} from '../src/invitation_record';
 import {Invite} from 'invite-bot';
-import {setupDb} from '../src/setup_db';
+
+import {InvitationRecord, InviteAction} from '../src/invitation_record';
+import {inMemoryDbConnect} from './_test_helper';
+import {setupDb} from '../src/db';
 
 describe('invitation record', () => {
-  const db: Database = knex({
-    client: 'sqlite3',
-    connection: ':memory:',
-    useNullAsDefault: true,
-  });
+  const db = inMemoryDbConnect();
   let record: InvitationRecord;
   const invite: Invite = {
     username: 'someone',
@@ -81,7 +76,7 @@ describe('invitation record', () => {
       });
 
       it('returns the invites', async () => {
-        const invites: Array<Invite> = await record.getInvites('someone');
+        const invites: Invite[] = await record.getInvites('someone');
 
         expect(invites[0]).toMatchObject(invite);
         expect(invites[1]).toMatchObject(otherInvite);

@@ -17,11 +17,10 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import knex, {Knex} from 'knex';
+import knex, {type Knex} from 'knex';
 
-export type Database = Knex;
 /** Connect to a database instance. */
-export function dbConnect(): Database {
+export function dbConnect(): Knex {
   return knex({
     client: 'pg',
     connection: {
@@ -32,4 +31,17 @@ export function dbConnect(): Database {
     },
     useNullAsDefault: true,
   } as Knex.Config);
+}
+
+/** Set up the database table. */
+export async function setupDb(db: Knex): Promise<void> {
+  return db.schema.createTable('invites', table => {
+    table.increments('id').primary();
+    table.string('username', 40);
+    table.string('repo', 100);
+    table.integer('issue_number');
+    table.string('action');
+    table.boolean('archived').defaultTo(false);
+    table.timestamp('created_at').notNullable().defaultTo(db.fn.now());
+  });
 }

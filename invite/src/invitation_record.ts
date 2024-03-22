@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-import {Database} from './db';
-import {Invite, InviteActionType, Logger} from 'invite-bot';
+import pino from 'pino';
+
+import type {Invite, InviteActionType} from 'invite-bot';
+import type {Knex} from 'knex';
+import type {Logger} from 'probot';
 
 type InviteDatabaseRow = Omit<Invite, 'created_at' | 'archived'> & {
   archived: number;
@@ -31,13 +34,17 @@ export const InviteAction: Record<string, InviteActionType> = {
  * A record of invites sent by the bot that may require follow-up actions.
  */
 export class InvitationRecord {
+  readonly logger: Logger;
+
   /**
    * Constructor.
    */
   constructor(
-    private db: Database,
-    private logger: Logger = console
-  ) {}
+    private db: Knex,
+    logger?: Logger
+  ) {
+    this.logger = logger ?? pino();
+  }
 
   /**
    * Records an invite created by the bot.
@@ -53,7 +60,7 @@ export class InvitationRecord {
   /**
    * Looks up the invites for a user.
    */
-  async getInvites(username: string): Promise<Array<Invite>> {
+  async getInvites(username: string): Promise<Invite[]> {
     this.logger.info(`getInvites: Looking up recorded invites to @${username}`);
     return (
       await this.db('invites').select().where({username, archived: false})

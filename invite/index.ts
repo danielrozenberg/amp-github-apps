@@ -15,6 +15,10 @@
  */
 
 import {createNodeMiddleware, createProbot} from 'probot';
-import appFn from './app';
+
+import {appFactory} from './src/app';
+import {dbConnect} from './src/db';
+
+const appFn = appFactory(dbConnect());
 
 module.exports.probot = createNodeMiddleware(appFn, {probot: createProbot()});

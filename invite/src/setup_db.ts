@@ -14,20 +14,7 @@
  * limitations under the License.
  */
 
-import {Database, dbConnect} from './db';
-
-/** Set up the database table. */
-export async function setupDb(db: Database): Promise<unknown> {
-  return db.schema.createTable('invites', table => {
-    table.increments('id').primary();
-    table.string('username', 40);
-    table.string('repo', 100);
-    table.integer('issue_number');
-    table.string('action');
-    table.boolean('archived').defaultTo(false);
-    table.timestamp('created_at').notNullable().defaultTo(db.fn.now());
-  });
-}
+import {dbConnect, setupDb} from './db';
 
 /**
  * This file creates the database tables to be used by the GitHub app.

@@ -15,34 +15,22 @@
  */
 
 import {Probot} from 'probot';
-import knex, {Knex} from 'knex';
 
-import {Database, dbConnect} from '../src/db';
 import {GitHub} from '../src/github';
 import {InvitationRecord, InviteAction} from '../src/invitation_record';
-import {setupDb} from '../src/setup_db';
+import {appFactory} from '../src/app';
+import {inMemoryDbConnect} from './_test_helper';
+import {setupDb} from '../src/db';
 import {triggerWebhook} from './fixtures';
-import app from '../app';
-
-jest.mock('../src/db', () => {
-  const testDb = knex({
-    client: 'sqlite3',
-    connection: ':memory:',
-    useNullAsDefault: true,
-  });
-
-  return {
-    Database: Knex,
-    dbConnect: (): Knex => testDb,
-  };
-});
 
 jest.mock('../src/github');
-const mockGithub = GitHub.prototype as jest.Mocked<GitHub>;
+const mockGithub = jest.mocked(GitHub.prototype);
 
 describe('end-to-end', () => {
+  const db = inMemoryDbConnect();
+  const app = appFactory(db);
+
   let probot: Probot;
-  let db: Database;
   let record: InvitationRecord;
 
   beforeAll(async () => {
@@ -54,7 +42,6 @@ describe('end-to-end', () => {
       NODE_ENV: 'test',
     };
 
-    db = dbConnect();
     await setupDb(db);
     record = new InvitationRecord(db);
 

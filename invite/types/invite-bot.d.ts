@@ -16,16 +16,6 @@
 
 declare module 'invite-bot' {
   /**
-   * A standard logging interface.
-   */
-  export interface Logger {
-    debug(message: string, ...extraInfo: unknown[]): void;
-    warn(message: string, ...extraInfo: unknown[]): void;
-    error(message: string, ...extraInfo: unknown[]): void;
-    info(message: string, ...extraInfo: unknown[]): void;
-  }
-
-  /**
    * Possible invite action types.
    */
   export type InviteActionType = 'invite' | 'invite_and_assign';
@@ -34,11 +24,11 @@ declare module 'invite-bot' {
    * An invite triggered by the bot.
    */
   export interface Invite {
-    username: string;
-    repo: string;
-    issue_number: number;
-    action: InviteActionType;
-    archived?: boolean;
-    created_at?: Date;
+    readonly username: string;
+    readonly repo: string;
+    readonly issue_number: number;
+    readonly action: InviteActionType;
+    readonly archived?: boolean;
+    readonly created_at?: Date;
   }
 }

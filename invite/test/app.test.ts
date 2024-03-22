@@ -17,10 +17,14 @@
 import {Probot} from 'probot';
 
 import {InviteBot} from '../src/invite_bot';
+import {appFactory} from '../src/app';
+import {inMemoryDbConnect} from './_test_helper';
 import {triggerWebhook} from './fixtures';
-import app from '../app';
 
 describe('Probot webhooks', () => {
+  const db = inMemoryDbConnect();
+  const app = appFactory(db);
+
   let probot: Probot;
 
   beforeAll(() => {
@@ -62,7 +66,7 @@ describe('Probot webhooks', () => {
     it('processes the comment for macros', async () => {
       await triggerWebhook(probot, eventName);
 
-      expect(InviteBot.prototype.processComment).toBeCalledWith(
+      expect(InviteBot.prototype.processComment).toHaveBeenCalledWith(
         'test_repo',
         1337,
         'Test comment',
@@ -82,7 +86,7 @@ describe('Probot webhooks', () => {
     it('does not processes the comment', async () => {
       await triggerWebhook(probot, eventName);
 
-      expect(InviteBot.prototype.processComment).not.toBeCalled();
+      expect(InviteBot.prototype.processComment).not.toHaveBeenCalled();
     });
   });
 
@@ -90,7 +94,7 @@ describe('Probot webhooks', () => {
     it('processes the accepted invite with follow-up actions', async () => {
       await triggerWebhook(probot, 'organization.member_added');
 
-      expect(InviteBot.prototype.processAcceptedInvite).toBeCalledWith(
+      expect(InviteBot.prototype.processAcceptedInvite).toHaveBeenCalledWith(
         'someone'
       );
     });
@@ -100,7 +104,9 @@ describe('Probot webhooks', () => {
     it('does not process the new membership', async () => {
       await triggerWebhook(probot, 'organization.member_invited');
 
-      expect(InviteBot.prototype.processAcceptedInvite).not.toBeCalledWith();
+      expect(
+        InviteBot.prototype.processAcceptedInvite
+      ).not.toHaveBeenCalledWith();
     });
   });
 
@@ -108,7 +114,9 @@ describe('Probot webhooks', () => {
     it('does not process the new membership', async () => {
       await triggerWebhook(probot, 'organization.member_removed');
 
-      expect(InviteBot.prototype.processAcceptedInvite).not.toBeCalledWith();
+      expect(
+        InviteBot.prototype.processAcceptedInvite
+      ).not.toHaveBeenCalledWith();
     });
   });
 });

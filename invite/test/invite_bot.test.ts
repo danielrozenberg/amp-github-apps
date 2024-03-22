@@ -14,31 +14,19 @@
  * limitations under the License.
  */
 
-import knex, {Knex} from 'knex';
+import {Logger, ProbotOctokit} from 'probot';
 
 import {GitHub} from '../src/github';
 import {InvitationRecord, InviteAction} from '../src/invitation_record';
-import {Invite} from 'invite-bot';
 import {InviteBot} from '../src/invite_bot';
-import {Octokit} from '@octokit/rest';
-import {dbConnect} from '../src/db';
-import {setupDb} from '../src/setup_db';
+import {inMemoryDbConnect} from './_test_helper';
+import {setupDb} from '../src/db';
 
-jest.mock('../src/db', () => {
-  const testDb = knex({
-    client: 'sqlite3',
-    connection: ':memory:',
-    useNullAsDefault: true,
-  });
-
-  return {
-    Database: Knex,
-    dbConnect: (): Knex => testDb,
-  };
-});
+import {mockDeep} from 'jest-mock-extended';
+import type {Invite} from 'invite-bot';
 
 jest.mock('../src/github');
-const mockGithub = GitHub.prototype as jest.Mocked<GitHub>;
+const mockGithub = jest.mocked(GitHub.prototype);
 
 function _daysAgo(days: number): Date {
   const d = new Date();
@@ -47,8 +35,10 @@ function _daysAgo(days: number): Date {
 }
 
 describe('Invite Bot', () => {
+  const db = inMemoryDbConnect();
+  const mockLogger = mockDeep<Logger>();
+  let mockGithubClient: jest.Mocked<ProbotOctokit>;
   let inviteBot: InviteBot;
-  const db = dbConnect();
 
   beforeAll(async () => setupDb(db));
   afterAll(async () => db.destroy());
@@ -57,10 +47,12 @@ describe('Invite Bot', () => {
     jest.spyOn(InvitationRecord.prototype, 'recordInvite');
 
     inviteBot = new InviteBot(
-      /*client=*/ {} as Octokit,
+      db,
+      mockGithubClient,
       'test_org',
       'test_org/wg-example',
-      /*helpUsernameToTag=*/ 'test_org/wg-helpme'
+      /*helpUsernameToTag=*/ 'test_org/wg-helpme',
+      mockLogger
     );
   });
 
@@ -72,17 +64,14 @@ describe('Invite Bot', () => {
 
   describe('constructor', () => {
     it('defaults helpUserTag to "someone"', () => {
-      inviteBot = new InviteBot(
-        /*client=*/ {} as Octokit,
-        'test_org',
-        'wg-example'
-      );
+      inviteBot = new InviteBot(db, mockGithubClient, 'test_org', 'wg-example');
       expect(inviteBot.helpUserTag).toEqual('someone in your organization');
     });
 
     it('prepends the help username with @ if set', () => {
       inviteBot = new InviteBot(
-        /*client=*/ {} as Octokit,
+        db,
+        mockGithubClient,
         'test_org',
         'wg-example',
         /*helpUsernameToTag=*/ 'test_org/wg-helpme'
@@ -104,7 +93,7 @@ describe('Invite Bot', () => {
     it('ignores empty comments', async () => {
       await inviteBot.processComment('test_repo', 1337, '', 'author');
 
-      expect(inviteBot.parseMacros).not.toBeCalled();
+      expect(inviteBot.parseMacros).not.toHaveBeenCalled();
     });
 
     it('parses the comment for macros', async () => {
@@ -130,7 +119,7 @@ describe('Invite Bot', () => {
         it('does not try to send invites', async () => {
           await inviteBot.processComment('test_repo', 1337, comment, author);
 
-          expect(inviteBot.tryInvite).not.toBeCalled();
+          expect(inviteBot.tryInvite).not.toHaveBeenCalled();
         });
       });
 
@@ -178,13 +167,13 @@ describe('Invite Bot', () => {
       it('does not try to check if the user can trigger', async () => {
         await inviteBot.processComment('test_repo', 1337, comment, 'author');
 
-        expect(inviteBot.userCanTrigger).not.toBeCalled();
+        expect(inviteBot.userCanTrigger).not.toHaveBeenCalled();
       });
 
       it('does not try to send any invites', async () => {
         await inviteBot.processComment('test_repo', 1337, comment, 'author');
 
-        expect(inviteBot.tryInvite).not.toBeCalled();
+        expect(inviteBot.tryInvite).not.toHaveBeenCalled();
       });
     });
   });
@@ -223,7 +212,7 @@ describe('Invite Bot', () => {
         it('does not try to assign any issues', async () => {
           await inviteBot.processAcceptedInvite('someone');
 
-          expect(inviteBot.tryAssign).not.toBeCalled();
+          expect(inviteBot.tryAssign).not.toHaveBeenCalled();
         });
 
         it('comments on the issues that the invite was accepted', async () => {
@@ -288,12 +277,12 @@ describe('Invite Bot', () => {
       it('does not try to assign any issues', async () => {
         await inviteBot.processAcceptedInvite('someone');
 
-        expect(inviteBot.tryAssign).not.toBeCalled();
+        expect(inviteBot.tryAssign).not.toHaveBeenCalled();
       });
       it('does not comment on any issues', async () => {
         inviteBot.processAcceptedInvite('someone');
 
-        expect(mockGithub.addComment).not.toBeCalled();
+        expect(mockGithub.addComment).not.toHaveBeenCalled();
       });
     });
   });
@@ -430,7 +419,7 @@ describe('Invite Bot', () => {
 
       it('it does not attempt to send an invite', async () => {
         await inviteBot.tryInvite(newInvite);
-        expect(mockGithub.inviteUser).not.toBeCalled();
+        expect(mockGithub.inviteUser).not.toHaveBeenCalled();
       });
 
       it('records the requested invite', async () => {
@@ -463,7 +452,7 @@ describe('Invite Bot', () => {
 
       it('does not record the requested invite', async () => {
         await inviteBot.tryInvite(newInvite);
-        expect(inviteBot.record.recordInvite).not.toBeCalled();
+        expect(inviteBot.record.recordInvite).not.toHaveBeenCalled();
       });
 
       it('comments that the user is already a member', async () => {
@@ -508,9 +497,6 @@ describe('Invite Bot', () => {
     describe('when the invite fails', () => {
       beforeEach(() => {
         mockGithub.inviteUser.mockRejectedValue(new Error('Uh-oh!'));
-        jest.spyOn(console, 'error').mockImplementation(() => {
-          // Do nothing
-        });
       });
 
       it('logs an error', async () => {
@@ -518,7 +504,7 @@ describe('Invite Bot', () => {
           await inviteBot.tryInvite(newInvite);
         } catch (e) {}
 
-        expect(console.error).toHaveBeenCalledWith(
+        expect(mockLogger.error).toHaveBeenCalledWith(
           'Failed to send an invite to `@someone`: Error: Uh-oh!'
         );
       });
